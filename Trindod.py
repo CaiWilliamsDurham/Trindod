@@ -16,7 +16,8 @@ import random
 import multiprocessing
 import tqdm
 from multiprocessing import Pool
-from tzwhere import tzwhere
+#from tzwhere import tzwhere
+from timezonefinder import TimezoneFinder
 import ujson
 
 
@@ -31,7 +32,7 @@ class JobQue:
         self.Loc = list()
         self.EM = list()
         self.Typ = list()
-        self.tf2 = tzwhere.tzwhere(forceTZ=True)
+        self.tf2 = TimezoneFinder()
         return
 
     # loads a preexisting .JBS file
@@ -66,7 +67,7 @@ class JobQue:
                 self.Jobs[i]['Latitude'] = lat
                 self.Jobs[i]['Longitude'] = lon
                 self.Jobs[i]['IRR'] = 7.5
-                tz = pytz.timezone(self.tf2.tzNameAt(latitude=float(lat), longitude=float(lon), forceTZ=True))
+                tz = pytz.timezone(self.tf2.timezone_at(lat=float(lat), lng=float(lon)))
                 date = dt.datetime(2019, 12, 21, hour=15, tzinfo=tz)
                 elevation = get_altitude(float(lat), float(lon), date)
             elif "." in Job['PrjLoc']:
@@ -78,9 +79,9 @@ class JobQue:
                 self.Jobs[i]['IRR'] = 7.5
 
                 tz = pytz.timezone(
-                    self.tf2.tzNameAt(
-                        latitude=float(self.Jobs[i]['Latitude']),
-                        longitude=float(self.Jobs[i]['Longitude']),
+                    self.tf2.timezone_at(
+                        lat=float(self.Jobs[i]['Latitude']),
+                        lng=float(self.Jobs[i]['Longitude']),
                         forceTZ=True))
                 date = dt.datetime(2019, 12, 21, hour=15, tzinfo=tz)
                 elevation = get_altitude(float(self.Jobs[i]['Latitude']), float(self.Jobs[i]['Longitude']), date)
@@ -94,10 +95,9 @@ class JobQue:
                 self.Jobs[i].update(self.Loc[i])
                 tilt = self.Jobs[i]['Tilt']
                 tz = pytz.timezone(
-                    self.tf2.tzNameAt(
-                        latitude=float(self.Jobs[i]['Latitude']),
-                        longitude=float(self.Jobs[i]['Longitude']),
-                        forceTZ=True))
+                    self.tf2.timezone_at(
+                        lat=float(self.Jobs[i]['Latitude']),
+                        lng=float(self.Jobs[i]['Longitude']),))
                 date = dt.datetime(2019, 12, 21, hour=15, tzinfo=tz)
                 elevation = get_altitude(float(self.Jobs[i]['Latitude']), float(self.Jobs[i]['Longitude']), date)
             width = 1.968
@@ -185,7 +185,7 @@ class JobQue:
                 Pass = 1
                 YieldAPSHR = io.StringIO(YieldAPSHR.content.decode('utf-8'))
                 YieldAPSH = pd.read_csv(
-                    YieldAPSHR, error_bad_lines=False, skipfooter=12, skiprows=[
+                    YieldAPSHR, skipfooter=12, skiprows=[
                         0, 1, 2, 3, 4, 5, 6, 7, 8], delimiter='\t\t', engine='python')
                 self.num += Pass
         return lat, lon, YieldAPSH, int(Tilt)
@@ -315,7 +315,7 @@ class TechTime:
             self.Entrants = (self.EndDate - self.StartDate).days * 24
 
         self.Dates = np.empty(self.Entrants, dtype=datetime)
-        date_int = np.linspace(0, self.Entrants, self.Entrants, dtype=np.int)
+        date_int = np.linspace(0, self.Entrants, self.Entrants, dtype=int)
         self.Dates[:] = self.StartDate + (self.Advance * date_int)
 
 
@@ -431,7 +431,7 @@ class Panel:
             Yield[i] = self.Yield[Date.month - 1]
             PeakSunHours[i] = self.PSH[Date.month - 1]
             Days[i] = calendar.monthrange(Date.year, Date.month)[1]
-            Month[i] = np.int(Date.month)
+            Month[i] = int(Date.month)
             i += 1
         if time.TimeStepString == 'month':
             self.Yield = Yield
@@ -769,7 +769,7 @@ class Out:
                 ResultsOutput.append('Error')
                 continue
         ResultO = pd.DataFrame([ResultsOutput], columns=ResultsRequested)
-        File = File.append(ResultO, ignore_index=True)
+        File = pd.concat([File, ResultO], ignore_index=True)#.append(ResultO, ignore_index=True)
         File.to_csv('Results.csv', index=False)
         return
 
